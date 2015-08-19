@@ -49,6 +49,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_uart.h"
 #include "driverlib/uart.h"
+#include "utils/uartstdio.h"
 #include "umsg.h"
 
 //*****************************************************************************
@@ -61,7 +62,21 @@
 void
 UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
-	// Code here
+    // Calculate checksum
+	// Send start bytes, 2 bytes
+	// Send message id, 2 bytes
+	// Send data
+	// Send checksum, 2 bytes
+
+	// Print out the contents of the message that was received.
+	unsigned int uIdx;
+
+	UARTprintf("id=0x%04X len=%u data=0x", psMsgObject->ui16MsgID, psMsgObject->ui32MsgLen);
+	for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
+	{
+		UARTprintf("%02X ", psMsgObject->pui8MsgData[uIdx]);
+	}
+	UARTprintf("\n");
 }
 
 //*****************************************************************************
