@@ -67,8 +67,8 @@ extern "C"
 // API Function prototypes
 //
 //*****************************************************************************
-extern void UMSGGet();
-extern void UMSGSet();
+extern void UARTMessageSet(uint32_t ui32Base, uint64_t ui64MsgData);
+extern uint64_t UARTMessageGet(uint32_t ui32Base);
 
 //*****************************************************************************
 //

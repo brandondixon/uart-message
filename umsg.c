@@ -44,6 +44,11 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "inc/hw_memmap.h"
+#include "inc/hw_sysctl.h"
+#include "inc/hw_types.h"
+#include "inc/hw_uart.h"
+#include "driverlib/uart.h"
 
 //*****************************************************************************
 //
@@ -53,7 +58,7 @@
 //
 //*****************************************************************************
 void
-UMSGSet()
+UARTMessageSet(uint32_t ui32Base, uint64_t ui64MsgData)
 {
 	// Code here
 }
@@ -65,10 +70,13 @@ UMSGSet()
 //! \return None.
 //
 //*****************************************************************************
-void
-UMSGGet()
+uint64_t
+UARTMessageGet(uint32_t ui32Base)
 {
-	// Code here
+	// ¿FIXME? junk data for now
+	uint64_t ui64Message = 0x0807060504030201;
+
+	return ui64Message;
 }
 
 //*****************************************************************************
