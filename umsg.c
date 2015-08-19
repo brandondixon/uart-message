@@ -49,6 +49,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_uart.h"
 #include "driverlib/uart.h"
+#include "umsg.h"
 
 //*****************************************************************************
 //
@@ -58,7 +59,7 @@
 //
 //*****************************************************************************
 void
-UARTMessageSet(uint32_t ui32Base, uint64_t ui64MsgData)
+UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
 	// Code here
 }
@@ -70,13 +71,10 @@ UARTMessageSet(uint32_t ui32Base, uint64_t ui64MsgData)
 //! \return None.
 //
 //*****************************************************************************
-uint64_t
-UARTMessageGet(uint32_t ui32Base)
+void
+UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
-	// ¿FIXME? junk data for now
-	uint64_t ui64Message = 0x0807060504030201;
-
-	return ui64Message;
+	// Code here
 }
 
 //*****************************************************************************

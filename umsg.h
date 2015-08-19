@@ -64,11 +64,36 @@ extern "C"
 
 //*****************************************************************************
 //
+//! The structure used for encapsulating all the items associated with a UART
+//! message object
+//
+//*****************************************************************************
+typedef struct
+{
+    //
+    //! The UART message identifier
+    //
+    uint16_t ui16MsgID;
+
+    //
+    //! This value is the number of bytes of data in the message object.
+    //
+    uint32_t ui32MsgLen;
+
+    //
+    //! This is a pointer to the message object's data.
+    //
+    uint8_t *pui8MsgData;
+}
+tUARTMsgObject;
+
+//*****************************************************************************
+//
 // API Function prototypes
 //
 //*****************************************************************************
-extern void UARTMessageSet(uint32_t ui32Base, uint64_t ui64MsgData);
-extern uint64_t UARTMessageGet(uint32_t ui32Base);
+extern void UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject);
+extern void UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject);
 
 //*****************************************************************************
 //
