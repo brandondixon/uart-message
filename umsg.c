@@ -52,6 +52,8 @@
 #include "utils/uartstdio.h"
 #include "umsg.h"
 
+#define START_BYTE 0xFF
+
 //*****************************************************************************
 //
 //! Configures a message object in the UMSG controller.
@@ -68,15 +70,26 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 	// Send data
 	// Send checksum, 2 bytes
 
-	// Print out the contents of the message that was received.
+	// Print out the contents of the message that was received
+	UARTCharPutNonBlocking(UART2_BASE, START_BYTE);
+	UARTCharPutNonBlocking(UART2_BASE, START_BYTE);
+
+
+	// Send message id
+	UARTCharPutNonBlocking(UART2_BASE, psMsgObject->ui16MsgID & 0xFF);
+	UARTCharPutNonBlocking(UART2_BASE, psMsgObject->ui16MsgID >> 8);
+
+	// Send data
 	unsigned int uIdx;
 
-	UARTprintf("id=0x%04X len=%u data=0x", psMsgObject->ui16MsgID, psMsgObject->ui32MsgLen);
 	for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
 	{
-		UARTprintf("%02X ", psMsgObject->pui8MsgData[uIdx]);
+		UARTCharPutNonBlocking(UART2_BASE, psMsgObject->pui8MsgData[uIdx]);
 	}
-	UARTprintf("\n");
+
+	// Checksum junk data
+	UARTCharPutNonBlocking(UART2_BASE, 0xFE);
+	UARTCharPutNonBlocking(UART2_BASE, 0xFE);
 }
 
 //*****************************************************************************
