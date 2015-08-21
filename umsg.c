@@ -71,25 +71,25 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 	// Send checksum, 2 bytes
 
 	// Print out the contents of the message that was received
-	UARTCharPutNonBlocking(UART2_BASE, START_BYTE);
-	UARTCharPutNonBlocking(UART2_BASE, START_BYTE);
+	UARTCharPutNonBlocking(ui32Base, START_BYTE);
+	UARTCharPutNonBlocking(ui32Base, START_BYTE);
 
 
 	// Send message id
-	UARTCharPutNonBlocking(UART2_BASE, psMsgObject->ui16MsgID & 0xFF);
-	UARTCharPutNonBlocking(UART2_BASE, psMsgObject->ui16MsgID >> 8);
+	UARTCharPutNonBlocking(ui32Base, psMsgObject->ui16MsgID & 0xFF);
+	UARTCharPutNonBlocking(ui32Base, psMsgObject->ui16MsgID >> 8);
 
 	// Send data
 	unsigned int uIdx;
 
 	for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
 	{
-		UARTCharPutNonBlocking(UART2_BASE, psMsgObject->pui8MsgData[uIdx]);
+		UARTCharPutNonBlocking(ui32Base, psMsgObject->pui8MsgData[uIdx]);
 	}
 
 	// Checksum junk data
-	UARTCharPutNonBlocking(UART2_BASE, 0xFE);
-	UARTCharPutNonBlocking(UART2_BASE, 0xFE);
+	UARTCharPutNonBlocking(ui32Base, 0xFE);
+	UARTCharPutNonBlocking(ui32Base, 0xFE);
 }
 
 //*****************************************************************************
@@ -100,9 +100,18 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 //
 //*****************************************************************************
 void
-UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
+//UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
+UARTMessageGet(uint32_t ui32Base, uint8_t *bleh1)
 {
-	// Code here
+	// Loop while there are characters in the receive FIFO.
+	while(UARTCharsAvail(ui32Base))
+	{
+		UARTCharGetNonBlocking(ui32Base);
+	}
+	UARTprintf("Rx Interrupt\r\n");
+
+	uint8_t bleh2 = *bleh1;
+	UARTprintf("%d",bleh2);
 }
 
 //*****************************************************************************
