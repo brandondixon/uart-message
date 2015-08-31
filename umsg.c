@@ -49,7 +49,6 @@
 #include "inc/hw_types.h"
 #include "inc/hw_uart.h"
 #include "driverlib/uart.h"
-#include "utils/uartstdio.h"
 #include "umsg.h"
 
 #define START_BYTE 0xFF
@@ -102,12 +101,31 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 void
 UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
-	// Receive data
-	unsigned int uIdx;
-
-	for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
+	if ( START_BYTE == UARTCharGetNonBlocking(ui32Base) )
 	{
-		psMsgObject->pui8MsgData[uIdx] = UARTCharGetNonBlocking(ui32Base);
+		if ( START_BYTE == UARTCharGetNonBlocking(ui32Base) )
+		{
+			// ?FIXME¿ Probably better way to get message ID
+			uint16_t ui16MessageID = 0x0000;
+			ui16MessageID = UARTCharGetNonBlocking(ui32Base) << 8 | ui16MessageID;
+			ui16MessageID = UARTCharGetNonBlocking(ui32Base) | ui16MessageID;
+
+			psMsgObject->ui16MsgID = ui16MessageID;
+
+			// Receive data
+			unsigned int uIdx;
+
+			for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
+			{
+				psMsgObject->pui8MsgData[uIdx] = UARTCharGetNonBlocking(ui32Base);
+			}
+
+			uint16_t ui16Checksum = 0x0000;
+			ui16Checksum = UARTCharGetNonBlocking(ui32Base) << 8 | ui16Checksum;
+			ui16Checksum = UARTCharGetNonBlocking(ui32Base) | ui16Checksum;
+
+			// ?FIXME¿ Checksum validation
+		}
 	}
 }
 
