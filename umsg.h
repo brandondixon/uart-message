@@ -93,9 +93,7 @@ tUARTMsgObject;
 //
 //*****************************************************************************
 extern void UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject);
-//extern void UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject);
-extern void UARTMessageGet(uint32_t ui32Base, uint8_t *bleh1);
-
+extern void UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject);
 
 //*****************************************************************************
 //
