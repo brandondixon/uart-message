@@ -49,9 +49,12 @@
 #include "inc/hw_types.h"
 #include "inc/hw_uart.h"
 #include "driverlib/uart.h"
+#include "driverlib/sw_crc.h"
 #include "umsg.h"
 
-#define START_BYTE 0xFF
+#include "utils/uartstdio.h"
+
+#define UMSG_START_BYTE 0xFF
 
 //*****************************************************************************
 //
@@ -69,26 +72,38 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 	// Send data
 	// Send checksum, 2 bytes
 
+	uint16_t ui16CRCValue = 0;		// Initilize CRC value
+	uint32_t ui32MsgLength = psMsgObject->ui32MsgLen;  // Get message length
+
+
 	// Print out the contents of the message that was received
-	UARTCharPutNonBlocking(ui32Base, START_BYTE);
-	UARTCharPutNonBlocking(ui32Base, START_BYTE);
+	UARTCharPutNonBlocking(ui32Base, UMSG_START_BYTE);
+	UARTCharPutNonBlocking(ui32Base, UMSG_START_BYTE);
+
+	// Convert message ID to array
+	uint8_t ui8MsgID[2] = {psMsgObject->ui16MsgID >> 8, psMsgObject->ui16MsgID & 0x00FF};
+	ui16CRCValue = Crc16(ui16CRCValue, ui8MsgID, 2);
 
 	// Send message id
-	UARTCharPutNonBlocking(ui32Base, psMsgObject->ui16MsgID >> 8);
-	UARTCharPutNonBlocking(ui32Base, psMsgObject->ui16MsgID & 0xFF);
+	UARTCharPutNonBlocking(ui32Base, ui8MsgID[0]);
+	UARTCharPutNonBlocking(ui32Base, ui8MsgID[1]);
 
 	// Send data
 	unsigned int uIdx;
-
-	for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
+	for(uIdx = 0; uIdx < ui32MsgLength; uIdx++)
 	{
-		UARTCharPutNonBlocking(ui32Base, psMsgObject->pui8MsgData[uIdx]);
+		uint8_t ui8MsgByte[1] = { psMsgObject->pui8MsgData[uIdx] };
+		UARTCharPutNonBlocking(ui32Base, ui8MsgByte[0]);
+		ui16CRCValue = Crc16(ui16CRCValue, ui8MsgByte, 1);
 	}
 
 	// Calculate the checksum
-	uint32_t ui32Checksum = 0xF0F1;
-	UARTCharPutNonBlocking(ui32Base, ui32Checksum >> 8);
-	UARTCharPutNonBlocking(ui32Base, ui32Checksum & 0x00FF);
+	uint8_t ui8CRC[2] = {ui16CRCValue >> 8, ui16CRCValue & 0x00FF};
+	UARTCharPutNonBlocking(ui32Base, ui8CRC[0] >> 8);
+	UARTCharPutNonBlocking(ui32Base, ui8CRC[1] & 0x00FF);
+
+	UARTprintf("\033[1;40f");	// Set cursor to R4C1
+	UARTprintf( "%04x",ui16CRCValue);
 }
 
 //*****************************************************************************
@@ -101,9 +116,9 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 void
 UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
-	if ( START_BYTE == UARTCharGetNonBlocking(ui32Base) )
+	if ( UMSG_START_BYTE == UARTCharGetNonBlocking(ui32Base) )
 	{
-		if ( START_BYTE == UARTCharGetNonBlocking(ui32Base) )
+		if ( UMSG_START_BYTE == UARTCharGetNonBlocking(ui32Base) )
 		{
 			// ?FIXME¿ Probably better way to get message ID
 			uint16_t ui16MessageID = 0x0000;
