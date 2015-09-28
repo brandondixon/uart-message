@@ -52,8 +52,6 @@
 #include "driverlib/sw_crc.h"
 #include "umsg.h"
 
-#include "utils/uartstdio.h"
-
 #define UMSG_START_BYTE 0xFF
 
 //*****************************************************************************
@@ -66,15 +64,7 @@
 void
 UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
-    // Calculate checksum
-	// Send start bytes, 2 bytes
-	// Send message id, 2 bytes
-	// Send data
-	// Send checksum, 2 bytes
-
-	uint16_t ui16CRCValue = 0;		// Initilize CRC value
-	uint32_t ui32MsgLength = psMsgObject->ui32MsgLen;  // Get message length
-
+	uint16_t ui16CRCcalc = 0;		// Initilize CRC value
 
 	// Print out the contents of the message that was received
 	UARTCharPutNonBlocking(ui32Base, UMSG_START_BYTE);
@@ -82,7 +72,7 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 
 	// Convert message ID to array
 	uint8_t ui8MsgID[2] = {psMsgObject->ui16MsgID >> 8, psMsgObject->ui16MsgID & 0x00FF};
-	ui16CRCValue = Crc16(ui16CRCValue, ui8MsgID, 2);
+	ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgID, 2);
 
 	// Send message id
 	UARTCharPutNonBlocking(ui32Base, ui8MsgID[0]);
@@ -90,20 +80,17 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 
 	// Send data
 	unsigned int uIdx;
-	for(uIdx = 0; uIdx < ui32MsgLength; uIdx++)
+	for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
 	{
 		uint8_t ui8MsgByte[1] = { psMsgObject->pui8MsgData[uIdx] };
 		UARTCharPutNonBlocking(ui32Base, ui8MsgByte[0]);
-		ui16CRCValue = Crc16(ui16CRCValue, ui8MsgByte, 1);
+		ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgByte, 1);
 	}
 
 	// Calculate the checksum
-	uint8_t ui8CRC[2] = {ui16CRCValue >> 8, ui16CRCValue & 0x00FF};
-	UARTCharPutNonBlocking(ui32Base, ui8CRC[0] >> 8);
-	UARTCharPutNonBlocking(ui32Base, ui8CRC[1] & 0x00FF);
-
-	UARTprintf("\033[1;40f");	// Set cursor to R4C1
-	UARTprintf( "%04x",ui16CRCValue);
+	uint8_t ui8CRCcalc[2] = { ui16CRCcalc >> 8, ui16CRCcalc & 0x00FF };
+	UARTCharPutNonBlocking(ui32Base, ui8CRCcalc[0]);
+	UARTCharPutNonBlocking(ui32Base, ui8CRCcalc[1]);
 }
 
 //*****************************************************************************
@@ -120,26 +107,42 @@ UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 	{
 		if ( UMSG_START_BYTE == UARTCharGetNonBlocking(ui32Base) )
 		{
-			// ?FIXME¿ Probably better way to get message ID
-			uint16_t ui16MessageID = 0x0000;
-			ui16MessageID = UARTCharGetNonBlocking(ui32Base) << 8 | ui16MessageID;
-			ui16MessageID = UARTCharGetNonBlocking(ui32Base) | ui16MessageID;
+			uint8_t ui8MsgID[2] = {0,0};	// Initilize Message ID array
+			uint16_t ui16MsgID = 0x0000;	// Initilize Message ID
 
-			psMsgObject->ui16MsgID = ui16MessageID;
+			uint8_t ui8CRCrx[2] = {0,0};	// Initilize CRC received array
+			uint16_t ui16CRCrx = 0x0000;	// Initilize CRC received value
+			uint16_t ui16CRCcalc = 0;		// Initilize CRC calculated value
+
+			// Convert message ID to array
+			ui8MsgID[0] = UARTCharGetNonBlocking(ui32Base);
+			ui8MsgID[1] = UARTCharGetNonBlocking(ui32Base);
+			ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgID, 2);
+			ui16MsgID = ui8MsgID[0] << 8 | ui8MsgID[1];
 
 			// Receive data
 			unsigned int uIdx;
-
 			for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
 			{
-				psMsgObject->pui8MsgData[uIdx] = UARTCharGetNonBlocking(ui32Base);
+				uint8_t ui8MsgByte[1] = { UARTCharGetNonBlocking(ui32Base) };
+				psMsgObject->pui8MsgData[uIdx] = ui8MsgByte[0];
+				ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgByte, 1);
 			}
 
-			uint16_t ui16Checksum = 0x0000;
-			ui16Checksum = UARTCharGetNonBlocking(ui32Base) << 8 | ui16Checksum;
-			ui16Checksum = UARTCharGetNonBlocking(ui32Base) | ui16Checksum;
+			// Convert message ID to array
+			ui8CRCrx[0] = UARTCharGetNonBlocking(ui32Base);
+			ui8CRCrx[1] = UARTCharGetNonBlocking(ui32Base);
+			ui16CRCrx = Crc16(ui16CRCcalc, ui8CRCrx, 2);
 
-			// ?FIXME¿ Checksum validation
+			// Convert recived values to ui16
+			ui16CRCrx = ui8CRCrx[0] << 8 | ui8CRCrx[1];
+
+			if ( ui16CRCrx == ui16CRCcalc )
+			{
+				psMsgObject->ui16MsgID = ui16MsgID;
+			} else {
+				psMsgObject->ui16MsgID = 0x0000;
+			}
 		}
 	}
 }
