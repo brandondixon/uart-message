@@ -64,6 +64,8 @@
 void
 UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
+	psMsgObject->ui32Flags = MSG_OBJ_NO_FLAGS;
+
 	uint16_t ui16CRCcalc = 0;		// Initilize CRC value
 
 	// Print out the contents of the message that was received
@@ -103,6 +105,8 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 void
 UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
+	psMsgObject->ui32Flags = MSG_OBJ_NO_FLAGS;
+
 	if ( UMSG_START_BYTE == UARTCharGetNonBlocking(ui32Base) )
 	{
 		if ( UMSG_START_BYTE == UARTCharGetNonBlocking(ui32Base) )
@@ -119,6 +123,7 @@ UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 			ui8MsgID[1] = UARTCharGetNonBlocking(ui32Base);
 			ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgID, 2);
 			ui16MsgID = ui8MsgID[0] << 8 | ui8MsgID[1];
+			psMsgObject->ui16MsgID = ui16MsgID;
 
 			// Receive data
 			unsigned int uIdx;
@@ -139,9 +144,9 @@ UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 
 			if ( ui16CRCrx == ui16CRCcalc )
 			{
-				psMsgObject->ui16MsgID = ui16MsgID;
+				psMsgObject->ui32Flags |= MSG_OBJ_NEW_DATA;
 			} else {
-				psMsgObject->ui16MsgID = 0x0000;
+				psMsgObject->ui32Flags |= MSG_OBJ_DATA_LOST;
 			}
 		}
 	}

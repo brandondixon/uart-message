@@ -16,7 +16,7 @@
 //   notice, this list of conditions and the following disclaimer in the
 //   documentation and/or other materials provided with the  
 //   distribution.
-// 
+//
 //   Neither the name of Sevun Scientific, Inc. nor the names of
 //   its contributors may be used to endorse or promote products derived
 //   from this software without specific prior written permission.
@@ -64,6 +64,29 @@ extern "C"
 
 //*****************************************************************************
 //
+// These are the flags used by the tUARTMsgObject.ui32Flags value when calling
+// the UARTMessageSet() and UARTMessageGet() functions.
+//
+//*****************************************************************************
+
+//
+//! This indicates that new data was available in the message object.
+//
+#define MSG_OBJ_NEW_DATA        0x00000080
+
+//
+//! This indicates that data was lost since this message object was last
+//! read.
+//
+#define MSG_OBJ_DATA_LOST       0x00000100
+
+//
+//! This indicates that a message object has no flags set.
+//
+#define MSG_OBJ_NO_FLAGS        0x00000000
+
+//*****************************************************************************
+//
 //! The structure used for encapsulating all the items associated with a UART
 //! message object
 //
@@ -74,6 +97,12 @@ typedef struct
     //! The UART message identifier
     //
     uint16_t ui16MsgID;
+
+    //
+    //! This value holds various status flags and settings specified by
+    //! tUARTObjFlags.
+    //
+    uint32_t ui32Flags;
 
     //
     //! This value is the number of bytes of data in the message object.
