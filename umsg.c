@@ -52,8 +52,6 @@
 #include "driverlib/sw_crc.h"
 #include "umsg.h"
 
-#define UMSG_START_BYTE 0xFF
-
 //*****************************************************************************
 //
 //! Configures a message object in the UMSG controller.

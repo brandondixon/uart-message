@@ -56,6 +56,8 @@ extern "C"
 {
 #endif
 
+#define UMSG_START_BYTE 0xFF
+
 //*****************************************************************************
 //
 // Miscellaneous defines for Message ID Types
