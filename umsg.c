@@ -44,13 +44,77 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "driverlib/sw_crc.h"
+#include "driverlib/uart.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_sysctl.h"
 #include "inc/hw_types.h"
 #include "inc/hw_uart.h"
-#include "driverlib/uart.h"
-#include "driverlib/sw_crc.h"
 #include "umsg.h"
+
+//*****************************************************************************
+//
+//! Write U8 value to UART and update running CRC from message stream
+//!
+//! \return None.
+//
+//*****************************************************************************
+void UARTWriteU8(uint32_t ui32Base, const uint8_t writeData, uint16_t *runningCrc)
+{
+	UARTCharPutNonBlocking(ui32Base, writeData);
+	*runningCrc = Crc16(*runningCrc, &writeData, 1);
+
+	return;
+}
+
+//*****************************************************************************
+//
+//! Write U16 value to UART and update running CRC from message stream
+//!
+//! \return None.
+//
+//*****************************************************************************
+void UARTWriteU16(uint32_t ui32Base, const uint16_t writeData, uint16_t *runningCrc)
+{
+	UARTWriteU8(ui32Base, (uint8_t)(0xFF & (writeData >> 8)), runningCrc);
+	UARTWriteU8(ui32Base, (uint8_t)(0xFF & writeData), runningCrc);
+
+	return;
+}
+
+//*****************************************************************************
+//
+//! Read U8 value from UART and update running CRC from message stream
+//!
+//! \return U8 data.
+//
+//*****************************************************************************
+uint8_t
+UARTReadU8(uint32_t ui32Base, uint16_t *runningCrc)
+{
+	uint8_t localReadData = UARTCharGetNonBlocking(ui32Base);
+	*runningCrc = Crc16(*runningCrc, &localReadData, 1);
+
+	return localReadData;
+}
+
+//*****************************************************************************
+//
+//! Read U16 value from UART and update running CRC from message stream
+//!
+//! \return U16 data.
+//
+//*****************************************************************************
+uint16_t
+UARTReadU16(uint32_t ui32Base, uint16_t *runningCrc)
+{
+	uint16_t localReadData =
+			(((uint16_t)(UARTReadU8(ui32Base, runningCrc)) << 8) & 0xFF00) |
+			(((uint16_t)(UARTReadU8(ui32Base, runningCrc))) & 0xFF);
+
+	return localReadData;
+}
 
 //*****************************************************************************
 //
@@ -64,33 +128,27 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
 	psMsgObject->ui32Flags = MSG_OBJ_NO_FLAGS;
 
-	uint16_t ui16CRCcalc = 0;		// Initilize CRC value
+	// initilize CRC value
+	uint16_t ui16CRCcalc = 0;
 
-	// Print out the contents of the message that was received
-	UARTCharPutNonBlocking(ui32Base, UMSG_START_BYTE);
-	UARTCharPutNonBlocking(ui32Base, UMSG_START_BYTE);
+	const uint16_t startWord = ((((uint16_t)UMSG_START_BYTE) << 8) & 0xFF00) | ((uint16_t)UMSG_START_BYTE);
 
-	// Convert message ID to array
-	uint8_t ui8MsgID[2] = {psMsgObject->ui16MsgID >> 8, psMsgObject->ui16MsgID & 0x00FF};
-	ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgID, 2);
+	// start new message with 0xFFFF
+	UARTWriteU16(ui32Base, startWord, &ui16CRCcalc);
 
-	// Send message id
-	UARTCharPutNonBlocking(ui32Base, ui8MsgID[0]);
-	UARTCharPutNonBlocking(ui32Base, ui8MsgID[1]);
+	// send message id
+	UARTWriteU16(ui32Base, psMsgObject->ui16MsgID, &ui16CRCcalc);
 
-	// Send data
+	// send data
 	unsigned int uIdx;
 	for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
 	{
-		uint8_t ui8MsgByte[1] = { psMsgObject->pui8MsgData[uIdx] };
-		UARTCharPutNonBlocking(ui32Base, ui8MsgByte[0]);
-		ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgByte, 1);
+		UARTWriteU8(ui32Base, psMsgObject->pui8MsgData[uIdx], &ui16CRCcalc);
 	}
 
-	// Calculate the checksum
-	uint8_t ui8CRCcalc[2] = { ui16CRCcalc >> 8, ui16CRCcalc & 0x00FF };
-	UARTCharPutNonBlocking(ui32Base, ui8CRCcalc[0]);
-	UARTCharPutNonBlocking(ui32Base, ui8CRCcalc[1]);
+	// send crc
+	uint16_t tempCrc = 0;
+	UARTWriteU16(ui32Base, ui16CRCcalc, &tempCrc);
 }
 
 //*****************************************************************************
@@ -105,47 +163,37 @@ UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
 	psMsgObject->ui32Flags = MSG_OBJ_NO_FLAGS;
 
-	if ( UMSG_START_BYTE == UARTCharGetNonBlocking(ui32Base) )
+	uint16_t tempCrc = 0;
+	uint16_t startSentinel = ((((uint16_t)UMSG_START_BYTE) << 8) & 0xFF00) | ((uint16_t)UMSG_START_BYTE);
+
+	if(startSentinel == UARTReadU16(ui32Base, &tempCrc))
 	{
-		if ( UMSG_START_BYTE == UARTCharGetNonBlocking(ui32Base) )
+		// initilize CRC received value
+		uint16_t ui16CRCrx = 0;
+		// initilize CRC calculated value
+		uint16_t ui16CRCcalc = 0;
+
+		// read message ID
+		psMsgObject->ui16MsgID = UARTReadU16(ui32Base, &ui16CRCcalc);
+
+		// receive data
+		unsigned int uIdx;
+		for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
 		{
-			uint8_t ui8MsgID[2] = {0,0};	// Initilize Message ID array
-			uint16_t ui16MsgID = 0x0000;	// Initilize Message ID
+			psMsgObject->pui8MsgData[uIdx] = UARTReadU8(ui32Base, &ui16CRCcalc);
+		}
 
-			uint8_t ui8CRCrx[2] = {0,0};	// Initilize CRC received array
-			uint16_t ui16CRCrx = 0x0000;	// Initilize CRC received value
-			uint16_t ui16CRCcalc = 0;		// Initilize CRC calculated value
+		// read CRC...
+		ui16CRCrx = UARTReadU16(ui32Base, &ui16CRCcalc);
 
-			// Convert message ID to array
-			ui8MsgID[0] = UARTCharGetNonBlocking(ui32Base);
-			ui8MsgID[1] = UARTCharGetNonBlocking(ui32Base);
-			ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgID, 2);
-			ui16MsgID = ui8MsgID[0] << 8 | ui8MsgID[1];
-			psMsgObject->ui16MsgID = ui16MsgID;
-
-			// Receive data
-			unsigned int uIdx;
-			for(uIdx = 0; uIdx < psMsgObject->ui32MsgLen; uIdx++)
-			{
-				uint8_t ui8MsgByte[1] = { UARTCharGetNonBlocking(ui32Base) };
-				psMsgObject->pui8MsgData[uIdx] = ui8MsgByte[0];
-				ui16CRCcalc = Crc16(ui16CRCcalc, ui8MsgByte, 1);
-			}
-
-			// Convert message ID to array
-			ui8CRCrx[0] = UARTCharGetNonBlocking(ui32Base);
-			ui8CRCrx[1] = UARTCharGetNonBlocking(ui32Base);
-			ui16CRCrx = Crc16(ui16CRCcalc, ui8CRCrx, 2);
-
-			// Convert recived values to ui16
-			ui16CRCrx = ui8CRCrx[0] << 8 | ui8CRCrx[1];
-
-			if ( ui16CRCrx == ui16CRCcalc )
-			{
-				psMsgObject->ui32Flags |= MSG_OBJ_NEW_DATA;
-			} else {
-				psMsgObject->ui32Flags |= MSG_OBJ_DATA_LOST;
-			}
+		// ...then check for data integrity against calculated value
+		if(ui16CRCrx == ui16CRCcalc)
+		{
+			psMsgObject->ui32Flags |= MSG_OBJ_NEW_DATA;
+		}
+		else
+		{
+			psMsgObject->ui32Flags |= MSG_OBJ_DATA_LOST;
 		}
 	}
 }

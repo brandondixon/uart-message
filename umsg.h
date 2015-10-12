@@ -56,6 +56,8 @@ extern "C"
 {
 #endif
 
+#include <stdint.h>
+
 #define UMSG_START_BYTE 0xFF
 
 //*****************************************************************************
