@@ -128,13 +128,15 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
 	psMsgObject->ui32Flags = MSG_OBJ_NO_FLAGS;
 
+	// dummy CRC value
+	uint16_t tempCrc = 0;
 	// initilize CRC value
 	uint16_t ui16CRCcalc = 0;
 
 	const uint16_t startWord = ((((uint16_t)UMSG_START_BYTE) << 8) & 0xFF00) | ((uint16_t)UMSG_START_BYTE);
 
 	// start new message with 0xFFFF
-	UARTWriteU16(ui32Base, startWord, &ui16CRCcalc);
+	UARTWriteU16(ui32Base, startWord, &tempCrc);
 
 	// send message id
 	UARTWriteU16(ui32Base, psMsgObject->ui16MsgID, &ui16CRCcalc);
@@ -146,8 +148,7 @@ UARTMessageSet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 		UARTWriteU8(ui32Base, psMsgObject->pui8MsgData[uIdx], &ui16CRCcalc);
 	}
 
-	// send crc
-	uint16_t tempCrc = 0;
+	// send CRC
 	UARTWriteU16(ui32Base, ui16CRCcalc, &tempCrc);
 }
 
@@ -163,10 +164,17 @@ UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 {
 	psMsgObject->ui32Flags = MSG_OBJ_NO_FLAGS;
 
+	// dummy CRC value
 	uint16_t tempCrc = 0;
-	uint16_t startSentinel = ((((uint16_t)UMSG_START_BYTE) << 8) & 0xFF00) | ((uint16_t)UMSG_START_BYTE);
 
-	if(startSentinel == UARTReadU16(ui32Base, &tempCrc))
+	// check if next byte could be start of 0xFFFF word
+	if(UMSG_START_BYTE != UARTReadU8(ui32Base, &tempCrc))
+	{
+		return;
+	}
+
+	// if so, check next byte and GO if it matches
+	if(UMSG_START_BYTE == UARTReadU8(ui32Base, &tempCrc))
 	{
 		// initilize CRC received value
 		uint16_t ui16CRCrx = 0;
@@ -184,7 +192,7 @@ UARTMessageGet(uint32_t ui32Base, tUARTMsgObject *psMsgObject)
 		}
 
 		// read CRC...
-		ui16CRCrx = UARTReadU16(ui32Base, &ui16CRCcalc);
+		ui16CRCrx = UARTReadU16(ui32Base, &tempCrc);
 
 		// ...then check for data integrity against calculated value
 		if(ui16CRCrx == ui16CRCcalc)
